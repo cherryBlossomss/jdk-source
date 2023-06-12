@@ -9,6 +9,7 @@ public class ReflectionTest {
 
     public static void main(String[] args) throws java.lang.InstantiationException, IllegalAccessException, ClassNotFoundException {
         Class<?> userClass = Class.forName("pojo.Human");
+        System.out.println("userClass = " + userClass);
     }
 
 }
