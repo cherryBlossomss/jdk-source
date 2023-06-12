@@ -1,4 +1,4 @@
-package com.auch.test.pojo;
+package pojo;
 
 
 public class Human {
