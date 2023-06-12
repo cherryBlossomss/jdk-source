@@ -11,7 +11,6 @@ public class ReflectionTest {
         Class<?> userClass = Class.forName("pojo.Human");
         System.out.println("userClass = " + userClass);
         System.out.println("userClass = " + userClass);
-
     }
 
 }
