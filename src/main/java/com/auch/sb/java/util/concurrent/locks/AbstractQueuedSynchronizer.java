@@ -378,9 +378,9 @@ public abstract class AbstractQueuedSynchronizer
      * on the design of this class.
      */
     static final class Node {
-        /** Marker to indicate a node is waiting in shared mode */
+        /** 共享模式比标记 */
         static final Node SHARED = new Node();
-        /** Marker to indicate a node is waiting in exclusive mode */
+        /** 独占模式标记 */
         static final Node EXCLUSIVE = null;
 
         /** waitStatus value to indicate thread has cancelled */
@@ -478,13 +478,15 @@ public abstract class AbstractQueuedSynchronizer
         Node nextWaiter;
 
         /**
-         * Returns true if node is waiting in shared mode.
+         * Returns true if node is waiting in shared mode. （节点是否在共享模式下等待）
          */
         final boolean isShared() {
             return nextWaiter == SHARED;
         }
 
         /**
+         *
+         * 获取前驱节点，如果前驱节点为空，则抛出空指针异常
          * Returns previous node, or throws NullPointerException if null.
          * Use when predecessor cannot be null.  The null check could
          * be elided, but is present to help the VM.
@@ -528,9 +530,10 @@ public abstract class AbstractQueuedSynchronizer
     private transient volatile Node tail;
 
     /**
-     * The synchronization state.
+     * The synchronization state.使用valatile保证其可见性
      */
     private volatile int state;
+
 
     /**
      * Returns the current value of synchronization state.
@@ -791,6 +794,7 @@ public abstract class AbstractQueuedSynchronizer
      * @param pred node's predecessor holding status
      * @param node the node
      * @return {@code true} if thread should block
+     * 只有当该节点的前驱结点的状态为SIGNAL时，才可以对该结点所封装的线程进行park操作。否则，将不能进行park操作。
      */
     private static boolean shouldParkAfterFailedAcquire(Node pred, Node node) {
         int ws = pred.waitStatus;
@@ -1849,13 +1853,16 @@ public abstract class AbstractQueuedSynchronizer
             Node t = lastWaiter;
             // If lastWaiter is cancelled, clean out.
             if (t != null && t.waitStatus != Node.CONDITION) {
+                // 消除状态为CONDITION的尾节点
                 unlinkCancelledWaiters();
+                // 重新赋值
                 t = lastWaiter;
             }
             Node node = new Node(Thread.currentThread(), Node.CONDITION);
             if (t == null)
                 firstWaiter = node;
             else
+                // 将新节点添加到尾节点
                 t.nextWaiter = node;
             lastWaiter = node;
             return node;
@@ -1939,6 +1946,7 @@ public abstract class AbstractQueuedSynchronizer
                 throw new IllegalMonitorStateException();
             Node first = firstWaiter;
             if (first != null)
+                // 唤醒一个等待线程
                 doSignal(first);
         }
 
@@ -1954,6 +1962,7 @@ public abstract class AbstractQueuedSynchronizer
                 throw new IllegalMonitorStateException();
             Node first = firstWaiter;
             if (first != null)
+                // 唤醒所有等待线程
                 doSignalAll(first);
         }
 
@@ -1967,12 +1976,14 @@ public abstract class AbstractQueuedSynchronizer
          * <li> Reacquire by invoking specialized version of
          *      {@link #acquire} with saved state as argument.
          * </ol>
+         *   等待，当前线程在接到信号之前一直处于等待状态，不响应中断
          */
         public final void awaitUninterruptibly() {
             Node node = addConditionWaiter();
             int savedState = fullyRelease(node);
             boolean interrupted = false;
             while (!isOnSyncQueue(node)) {
+                // 阻塞当前线程
                 LockSupport.park(this);
                 if (Thread.interrupted())
                     interrupted = true;
@@ -2187,7 +2198,7 @@ public abstract class AbstractQueuedSynchronizer
         }
 
         /**
-         * Queries whether any threads are waiting on this condition.
+         * Queries whether any threads are waiting on this condition. 查询是否有正在等待此条件的任何线程
          * Implements {@link AbstractQueuedSynchronizer#hasWaiters(ConditionObject)}.
          *
          * @return {@code true} if there are any waiting threads
@@ -2205,7 +2216,7 @@ public abstract class AbstractQueuedSynchronizer
         }
 
         /**
-         * Returns an estimate of the number of threads waiting on
+         * Returns an estimate of the number of threads waiting on（返回正在等待此条件的线程数估计值）
          * this condition.
          * Implements {@link AbstractQueuedSynchronizer#getWaitQueueLength(ConditionObject)}.
          *
@@ -2225,7 +2236,7 @@ public abstract class AbstractQueuedSynchronizer
         }
 
         /**
-         * Returns a collection containing those threads that may be
+         * Returns a collection containing those threads that may be（返回包含那些可能正在等待此条件的线程集合）
          * waiting on this Condition.
          * Implements {@link AbstractQueuedSynchronizer#getWaitingThreads(ConditionObject)}.
          *

@@ -916,6 +916,7 @@ public class ThreadPoolExecutor extends AbstractExecutorService {
                 if (wc >= CAPACITY ||
                     wc >= (core ? corePoolSize : maximumPoolSize))
                     return false;
+                // CAS递增workerCount
                 if (compareAndIncrementWorkerCount(c))
                     break retry;
                 c = ctl.get();  // Re-read ctl
@@ -944,6 +945,7 @@ public class ThreadPoolExecutor extends AbstractExecutorService {
                         (rs == SHUTDOWN && firstTask == null)) {
                         if (t.isAlive()) // precheck that t is startable
                             throw new IllegalThreadStateException();
+                        // 1.将新建的worker添加到workers中
                         workers.add(w);
                         int s = workers.size();
                         if (s > largestPoolSize)
@@ -953,12 +955,14 @@ public class ThreadPoolExecutor extends AbstractExecutorService {
                 } finally {
                     mainLock.unlock();
                 }
+                // 2.如果成功添加工作线程，则调用Worker内部的线程实例t的Thread#start()方法启动真实的线程实例
                 if (workerAdded) {
                     t.start();
                     workerStarted = true;
                 }
             }
         } finally {
+            // 3.如果启动失败，则从workers中移除该worker
             if (! workerStarted)
                 addWorkerFailed(w);
         }
@@ -1362,12 +1366,25 @@ public class ThreadPoolExecutor extends AbstractExecutorService {
          * thread.  If it fails, we know we are shut down or saturated
          * and so reject the task.
          */
+        /**
+         * 1.如果当前运行的线程数小于核心线程数，则新建一个线程
+         * 2.如果当前运行的线程数大于等于核心线程数，则将任务添加到队列中
+         * 3.如果添加到队列失败，则新建一个线程,直到线程数达到最大线程数
+         * 4.如果新建线程失败，则执行拒绝策略
+         * 5.如果拒绝策略抛出异常，则直接抛出异常
+         * 6.如果拒绝策略没有抛出异常，则直接返回
+         */
+
         int c = ctl.get();
+        // 1.首先判断当前线程池中执行的任务数量是否小于 corePoolSize
+        // 如果小于的话，通过addWorker(command, true)新建一个线程，并将任务(command)添加到该线程中；然后，启动该线程从而执行任务
         if (workerCountOf(c) < corePoolSize) {
             if (addWorker(command, true))
                 return;
             c = ctl.get();
         }
+        // 2.如果当前执行的任务数量大于等于 corePoolSize 的时候就会走到这里，表明创建新的线程失败。
+        // 通过 isRunning 方法判断线程池状态，线程池处于 RUNNING 状态并且队列可以加入任务，该任务才会被加入进去
         if (isRunning(c) && workQueue.offer(command)) {
             int recheck = ctl.get();
             if (! isRunning(recheck) && remove(command))
@@ -1375,6 +1392,9 @@ public class ThreadPoolExecutor extends AbstractExecutorService {
             else if (workerCountOf(recheck) == 0)
                 addWorker(null, false);
         }
+        //3. 通过addWorker(command, false)新建一个线程，并将任务(command)添加到该线程中；然后，启动该线程从而执行任务。
+        // 传入 false 代表增加线程时判断当前线程数是否少于 maxPoolSize
+        //如果addWorker(command, false)执行失败，则通过reject()执行相应的拒绝策略的内容。
         else if (!addWorker(command, false))
             reject(command);
     }
